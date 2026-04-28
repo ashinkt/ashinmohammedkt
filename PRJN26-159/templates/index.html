@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zero-Day Scanner for Supply Chain Web Portal Security</title>
+  <meta name="description"
+    content="Scan any e-commerce or supply chain URL to detect broken links, risky redirects, and external connections." />
+
+  <!-- Google Font: Inter (modern, clean, professional) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body class="home-body">
+
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-box">
+      <div class="radar">
+        <div class="radar-ring ring-1"></div>
+        <div class="radar-ring ring-2"></div>
+        <div class="radar-ring ring-3"></div>
+        <div class="radar-dot"></div>
+      </div>
+      <h2 class="loading-title">Scanning Target…</h2>
+      <p class="loading-sub" id="loadingStatus">Fetching page &amp; extracting links</p>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressBar"></div>
+      </div>
+      <p class="loading-hint">⚠️ Ethical scanning in progress. Please wait.</p>
+    </div>
+  </div>
+
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">🛡️</span>
+        <span class="brand-name">ZeroDay<span class="brand-accent">Scanner</span></span>
+      </div>
+      <nav class="header-nav">
+        <span class="nav-badge badge-blue">Ethical</span>
+        <span class="nav-badge badge-green">Educational</span>
+        <span class="nav-badge badge-orange">v1.0</span>
+      </nav>
+    </div>
+  </header>
+
+
+  <main class="hero">
+    <div class="particles" aria-hidden="true">
+      <span class="particle p1"></span>
+      <span class="particle p2"></span>
+      <span class="particle p3"></span>
+      <span class="particle p4"></span>
+      <span class="particle p5"></span>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-tag">
+        <span class="pulse-dot"></span>
+        Supply Chain Security · Link Integrity Checker
+      </div>
+
+      <h1 class="hero-title">
+        Zero-Day Scanner<br />
+        <span class="gradient-text">for supply chain web portal</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Enter any e-commerce or supply chain portal URL.
+        The scanner will <strong>crawl the page</strong>,
+        <strong>extract all hyperlinks</strong>, and report their
+        HTTP status — broken, working, redirected, or external.
+      </p>
+
+      <form id="scanForm" action="/scan" method="POST" class="scan-form" onsubmit="startLoading(event)">
+        <div class="input-group">
+          <span class="input-icon">🔍</span>
+          <input type="text" id="urlInput" name="url" class="url-input" placeholder="https://www.example-store.com"
+            autocomplete="off" spellcheck="false" required />
+          <button type="submit" id="scanBtn" class="scan-btn">
+            <span class="btn-text">Scan Now</span>
+            <span class="btn-arrow">→</span>
+          </button>
+        </div>
+        <div class="quick-links">
+          <span class="quick-label">Try:</span>
+          <button type="button" class="quick-btn"
+            onclick="fillURL('https://books.toscrape.com')">books.toscrape.com</button>
+          <button type="button" class="quick-btn"
+            onclick="fillURL('https://quotes.toscrape.com')">quotes.toscrape.com</button>
+        </div>
+      </form>
+
+      <div class="steps-grid">
+        <div class="step-card" data-step="01">
+          <div class="step-icon">🌐</div>
+          <h3>Crawl</h3>
+          <p>Fetches the raw HTML of the target page using Python Requests</p>
+        </div>
+        <div class="step-card" data-step="02">
+          <div class="step-icon">🔗</div>
+          <h3>Extract</h3>
+          <p>BeautifulSoup parses the HTML &amp; collects every &lt;a href&gt; link</p>
+        </div>
+        <div class="step-card" data-step="03">
+          <div class="step-icon">⚡</div>
+          <h3>Check</h3>
+          <p>Each link is tested in parallel threads for its HTTP status code</p>
+        </div>
+        <div class="step-card" data-step="04">
+          <div class="step-icon">📊</div>
+          <h3>Report</h3>
+          <p>Results colour-coded: Green OK · Red Broken · Yellow Redirect</p>
+        </div>
+      </div>
+
+    </div><!-- /hero-content -->
+  </main>
+
+
+
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>
+      🛡️ <strong>Zero-Day Scanner</strong> — Web link security checker.
+      Always obtain permission before scanning any website.
+    </p>
+  </footer>
+
+
+  <!-- ═══════════════════════════════════════════
+       JAVASCRIPT
+       1. Show loading overlay on form submit
+       2. Animate the progress bar
+       3. Fill "quick" demo URLs
+  ════════════════════════════════════════════ -->
+  <script>
+    function startLoading(event) {
+      const input = document.getElementById('urlInput').value.trim();
+      if (!input) {
+        event.preventDefault();
+        alert('Please enter a URL to scan.');
+        return;
+      }
+      document.getElementById('loadingOverlay').classList.remove('hidden');
+      animateProgress();
+    }
+
+    function animateProgress() {
+      const bar = document.getElementById('progressBar');
+      const status = document.getElementById('loadingStatus');
+      const messages = [
+        'Fetching page & extracting links…',
+        'Normalising URLs to absolute paths…',
+        'Checking HTTP status codes…',
+        'Analysing broken & external links…',
+        'Building your security report…',
+      ];
+
+      let progress = 0;
+      let msgIndex = 0;
+      const interval = setInterval(() => {
+        progress = Math.min(progress + Math.random() * 8, 90);
+        bar.style.width = progress + '%';
+        if (progress > msgIndex * 18 && msgIndex < messages.length) {
+          status.textContent = messages[msgIndex];
+          msgIndex++;
+        }
+        if (progress >= 90) clearInterval(interval);
+      }, 400);
+    }
+
+    function fillURL(url) {
+      document.getElementById('urlInput').value = url;
+      document.getElementById('urlInput').focus();
+    }
+  </script>
+
+</body>
+
+</html>

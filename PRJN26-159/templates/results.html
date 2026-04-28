@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scan Results | Zero-Day Scanner</title>
+  <meta name="description" content="HTTP link scan results for {{ target_url }}" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body class="results-body">
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">🛡️</span>
+        <span class="brand-name">ZeroDay<span class="brand-accent">Scanner</span></span>
+      </div>
+      <a href="/" class="back-btn">← New Scan</a>
+    </div>
+  </header>
+
+
+  <main class="results-main">
+
+    {% if not error %}
+    <div class="target-bar">
+      <div class="target-bar-inner">
+        <div class="target-info">
+          <span class="target-label">🎯 Scanned Target</span>
+          <a href="{{ target_url }}" target="_blank" rel="noopener" class="target-url">
+            {{ target_url }}
+          </a>
+        </div>
+        <div class="scan-meta">
+          <span class="meta-item">⏱️ {{ elapsed }}s</span>
+          <span class="meta-item">🔗 {{ total }} links checked</span>
+          <span class="meta-item">🧵 20 threads</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+
+    {% if error %}
+    <div class="error-page">
+      <div class="err-icon-wrap">
+        {% if error_type == "network" %}
+          <div class="err-big-icon">🔌</div>
+          <h2 class="err-title">Connection Failed</h2>
+        {% elif error_type == "empty" or error_type == "invalid" %}
+          <div class="err-big-icon">🔗</div>
+          <h2 class="err-title">Invalid URL</h2>
+        {% elif error_type == "empty_page" %}
+          <div class="err-big-icon">📄</div>
+          <h2 class="err-title">Empty Page</h2>
+        {% elif error_type == "no_links" %}
+          <div class="err-big-icon">🔍</div>
+          <h2 class="err-title">No Links Found</h2>
+        {% else %}
+          <div class="err-big-icon">⚠️</div>
+          <h2 class="err-title">Scan Could Not Complete</h2>
+        {% endif %}
+      </div>
+
+      {% if target_url and target_url != "(none)" %}
+      <div class="err-target">
+        <span class="err-target-label">Attempted URL:</span>
+        <code class="err-target-url">{{ target_url }}</code>
+      </div>
+      {% endif %}
+
+      <div class="err-message">
+        {{ error | safe }}
+      </div>
+
+      <div class="err-tips">
+        <h3>💡 Common Causes &amp; Fixes</h3>
+        <ul>
+          {% if error_type == "network" %}
+            <li>The domain doesn't exist — double-check the spelling</li>
+            <li>The server is offline or blocking automated requests</li>
+            <li>Your internet connection may have dropped</li>
+            <li>Try a different URL like <code>https://books.toscrape.com</code></li>
+          {% elif error_type == "invalid" or error_type == "empty" %}
+            <li>Make sure the URL includes a domain, e.g. <code>books.toscrape.com</code></li>
+            <li>Don't enter just a word — it must be a web address</li>
+            <li>Use the quick-fill buttons on the home page to test</li>
+          {% elif error_type == "empty_page" %}
+            <li>The site may require JavaScript to render (this scanner cannot run JS)</li>
+            <li>Try a different, publicly accessible static website</li>
+          {% elif error_type == "no_links" %}
+            <li>The page has no clickable <code>&lt;a href&gt;</code> anchor tags</li>
+            <li>Some pages are purely visual with no navigation links</li>
+            <li>Try scanning the site's homepage instead of a sub-page</li>
+          {% else %}
+            <li>Check that the URL is correct and the site is publicly accessible</li>
+            <li>Try scanning <code>https://books.toscrape.com</code> to test the scanner</li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="err-actions">
+        <a href="/" class="err-btn-primary">← Try a Different URL</a>
+        <button onclick="history.back()" class="err-btn-secondary">↩ Go Back</button>
+      </div>
+
+    </div><!-- /error-page -->
+
+    {% else %}
+    <!-- ═══════════════════════════════════════════
+         SUMMARY STAT CARDS
+         Each card shows one category count.
+         Clicking a card filters the results table.
+    ════════════════════════════════════════════ -->
+    <section class="stats-grid" aria-label="Scan summary">
+
+      <!-- TOTAL -->
+      <div class="stat-card card-total" onclick="filterTable('all')" id="filter-all">
+        <div class="stat-icon">📊</div>
+        <div class="stat-number">{{ total }}</div>
+        <div class="stat-label">Total Links</div>
+        <div class="stat-sub">Checked</div>
+      </div>
+
+      <!-- WORKING / GREEN -->
+      <div class="stat-card card-working" onclick="filterTable('working')" id="filter-working">
+        <div class="stat-icon">✅</div>
+        <div class="stat-number">{{ working_count }}</div>
+        <div class="stat-label">Working</div>
+        <div class="stat-sub">200 OK</div>
+      </div>
+
+      <!-- BROKEN / RED -->
+      <div class="stat-card card-broken" onclick="filterTable('broken')" id="filter-broken">
+        <div class="stat-icon">💀</div>
+        <div class="stat-number">{{ broken_count }}</div>
+        <div class="stat-label">Broken</div>
+        <div class="stat-sub">4xx · 5xx · Errors</div>
+      </div>
+
+      <!-- REDIRECT / YELLOW -->
+      <div class="stat-card card-redirect" onclick="filterTable('redirect')" id="filter-redirect">
+        <div class="stat-icon">↩️</div>
+        <div class="stat-number">{{ redirect_count }}</div>
+        <div class="stat-label">Redirects</div>
+        <div class="stat-sub">3xx — potentially risky</div>
+      </div>
+
+      <!-- EXTERNAL / PURPLE -->
+      <div class="stat-card card-external" onclick="filterTable('external')" id="filter-external">
+        <div class="stat-icon">🌐</div>
+        <div class="stat-number">{{ external_count }}</div>
+        <div class="stat-label">External</div>
+        <div class="stat-sub">Different domain</div>
+      </div>
+
+    </section>
+
+
+    <!-- ═══════════════════════════════════════════
+         RISK GAUGE  (visual threat summary)
+    ════════════════════════════════════════════ -->
+    <div class="risk-panel">
+      <div class="risk-left">
+        <h2 class="risk-title">Security Assessment</h2>
+        <p class="risk-desc">
+          Based on the scan, here is the risk breakdown for
+          <strong>{{ target_url }}</strong>:
+        </p>
+
+        <!-- Gauge bars -->
+        <div class="gauge-row">
+          <span class="gauge-label">Working</span>
+          <div class="gauge-track">
+            <div class="gauge-fill fill-green"
+                 style="width: {{ ((working_count / total) * 100) | round(1) if total > 0 else 0 }}%"></div>
+          </div>
+          <span class="gauge-pct">{{ ((working_count / total) * 100) | round(1) if total > 0 else 0 }}%</span>
+        </div>
+
+        <div class="gauge-row">
+          <span class="gauge-label">Broken</span>
+          <div class="gauge-track">
+            <div class="gauge-fill fill-red"
+                 style="width: {{ ((broken_count / total) * 100) | round(1) if total > 0 else 0 }}%"></div>
+          </div>
+          <span class="gauge-pct">{{ ((broken_count / total) * 100) | round(1) if total > 0 else 0 }}%</span>
+        </div>
+
+        <div class="gauge-row">
+          <span class="gauge-label">Redirect</span>
+          <div class="gauge-track">
+            <div class="gauge-fill fill-yellow"
+                 style="width: {{ ((redirect_count / total) * 100) | round(1) if total > 0 else 0 }}%"></div>
+          </div>
+          <span class="gauge-pct">{{ ((redirect_count / total) * 100) | round(1) if total > 0 else 0 }}%</span>
+        </div>
+
+        <div class="gauge-row">
+          <span class="gauge-label">External</span>
+          <div class="gauge-track">
+            <div class="gauge-fill fill-purple"
+                 style="width: {{ ((external_count / total) * 100) | round(1) if total > 0 else 0 }}%"></div>
+          </div>
+          <span class="gauge-pct">{{ ((external_count / total) * 100) | round(1) if total > 0 else 0 }}%</span>
+        </div>
+      </div>
+
+      <!-- Risk level badge -->
+      <div class="risk-right">
+        {% set risk_pct = ((broken_count + redirect_count) / total * 100) | round(0) | int if total > 0 else 0 %}
+        {% if risk_pct < 15 %}
+          <div class="risk-badge badge-low">LOW RISK</div>
+          <p class="risk-note">✅ This site appears healthy. Most links are working correctly.</p>
+        {% elif risk_pct < 40 %}
+          <div class="risk-badge badge-medium">MEDIUM RISK</div>
+          <p class="risk-note">⚠️ Some broken or redirected links. Warrants investigation.</p>
+        {% else %}
+          <div class="risk-badge badge-high">HIGH RISK</div>
+          <p class="risk-note">🚨 High number of broken/redirect links. Possible supply chain issues.</p>
+        {% endif %}
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════
+         RESULTS TABLE
+    ════════════════════════════════════════════ -->
+    <section class="table-section">
+
+      <!-- Table toolbar: search + filter buttons -->
+      <div class="table-toolbar">
+        <input
+          type="text"
+          id="searchInput"
+          class="table-search"
+          placeholder="🔍  Search URLs…"
+          oninput="searchTable()"
+        />
+
+        <div class="filter-btns">
+          <button class="filter-tag active" id="btn-all"      onclick="filterTable('all')">All ({{ total }})</button>
+          <button class="filter-tag green"  id="btn-working"  onclick="filterTable('working')">✅ Working ({{ working_count }})</button>
+          <button class="filter-tag red"    id="btn-broken"   onclick="filterTable('broken')">💀 Broken ({{ broken_count }})</button>
+          <button class="filter-tag yellow" id="btn-redirect" onclick="filterTable('redirect')">↩️ Redirect ({{ redirect_count }})</button>
+          <button class="filter-tag purple" id="btn-external" onclick="filterTable('external')">🌐 External ({{ external_count }})</button>
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      <div class="table-wrapper">
+        <table class="results-table" id="resultsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>URL</th>
+              <th>Status</th>
+              <th>Code</th>
+              <th>Type</th>
+              <th>Category</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+
+            <!-- Jinja2 loop — renders one row per link result -->
+            {% for item in results %}
+            <tr class="result-row row-{{ item.category }}" data-category="{{ item.category }}">
+
+              <!-- Row number -->
+              <td class="col-num">{{ loop.index }}</td>
+
+              <!-- URL — truncated with tooltip for long links -->
+              <td class="col-url">
+                <a href="{{ item.url }}"
+                   target="_blank"
+                   rel="noopener"
+                   title="{{ item.url }}"
+                   class="url-link">
+                  {{ item.url | truncate(60) }}
+                </a>
+              </td>
+
+              <!-- Human-readable status label -->
+              <td class="col-status">
+                <span class="status-badge badge-{{ item.category }}">
+                  {{ item.status }}
+                </span>
+              </td>
+
+              <!-- Numeric HTTP code -->
+              <td class="col-code">
+                <code class="code-pill code-{{ item.category }}">{{ item.code if item.code > 0 else '—' }}</code>
+              </td>
+
+              <!-- Internal vs External -->
+              <td class="col-type">
+                <span class="type-tag {{ 'tag-external' if item.external else 'tag-internal' }}">
+                  {{ item.type }}
+                </span>
+              </td>
+
+              <!-- Category label -->
+              <td class="col-cat">
+                <span class="cat-dot dot-{{ item.category }}"></span>
+                {{ item.category | capitalize }}
+              </td>
+
+            </tr>
+            {% endfor %}
+
+          </tbody>
+        </table>
+
+        <!-- Shown when the search finds no results -->
+        <div id="noResultsMsg" class="no-results hidden">
+          🔍 No links match your filter.
+        </div>
+      </div>
+
+    </section><!-- /table-section -->
+
+
+    <!-- ═══════════════════════════════════════════
+         EDUCATIONAL PANEL
+         Explains security concepts — covers all 4
+         viva topics: risky links, supply chain,
+         zero-day vs basic, ethical hacking workflow.
+    ════════════════════════════════════════════ -->
+    <section class="edu-panel">
+      <h2 class="edu-title">🎓 What This Scan Taught Us</h2>
+      <div class="edu-grid">
+
+        <!-- ── Original 4 core concepts ─────────────────── -->
+
+        <div class="edu-card">
+          <div class="edu-icon">🕷️</div>
+          <h3>Web Crawling</h3>
+          <p>
+            The scanner fetched the target URL and used
+            <strong>BeautifulSoup</strong> to parse the HTML DOM,
+            collecting every <code>&lt;a href&gt;</code> tag —
+            exactly how search engines and security tools map a site's
+            attack surface.
+          </p>
+        </div>
+
+        <div class="edu-card">
+          <div class="edu-icon">🔌</div>
+          <h3>HTTP Status Codes</h3>
+          <p>
+            <strong>200</strong> = OK &nbsp;·&nbsp;
+            <strong>301/302</strong> = Redirect &nbsp;·&nbsp;
+            <strong>404</strong> = Broken &nbsp;·&nbsp;
+            <strong>500</strong> = Server Error.
+            These codes are the primary signal used to classify link risk
+            in automated security assessments.
+          </p>
+        </div>
+
+        <div class="edu-card">
+          <div class="edu-icon">⚡</div>
+          <h3>Concurrent Threading</h3>
+          <p>
+            Checking {{ total }} links <em>sequentially</em> could take minutes.
+            A <strong>ThreadPoolExecutor</strong> runs 20 threads in parallel
+            to check every link simultaneously — the same technique used
+            in real-world penetration testing tools like Nikto and Gobuster.
+          </p>
+        </div>
+
+        <div class="edu-card">
+          <div class="edu-icon">🛡️</div>
+          <h3>Responsible Disclosure</h3>
+          <p>
+            Uses lightweight <code>HEAD</code> requests (no body download)
+            to minimise server load. Falls back to <code>GET</code> only
+            when the server rejects HEAD. This mirrors responsible
+            disclosure principles — verify risk without causing harm.
+          </p>
+        </div>
+
+        <!-- ── NEW: Risky Links explained ───────────────── -->
+
+        <div class="edu-card edu-card-highlight">
+          <div class="edu-icon">⚠️</div>
+          <h3>What Makes a Link "Risky"?</h3>
+          <p>
+            <strong>Broken (4xx/5xx):</strong> Dead links open expired domain
+            hijacking opportunities. <strong>Redirects (3xx):</strong> Open
+            redirects are a classic phishing vector — a trusted URL silently
+            forwards users to a malicious site. <strong>External links</strong>
+            introduce third-party trust dependencies attackers can exploit.
+          </p>
+        </div>
+
+        <!-- ── NEW: Supply chain use case ───────────────── -->
+
+        <div class="edu-card edu-card-highlight">
+          <div class="edu-icon">🏭</div>
+          <h3>Supply Chain Connection</h3>
+          <p>
+            Supply chain portals link <em>suppliers, logistics APIs, and
+            payment gateways</em> via hyperlinks. A single compromised redirect
+            can lead to credential theft; a hijacked broken-link domain can
+            serve fake invoices. IBM reports <strong>62% of breaches</strong>
+            involve a third-party supplier — link integrity is the first
+            defence layer.
+          </p>
+        </div>
+
+        <!-- ── NEW: Zero-Day vs Basic Scanner ───────────── -->
+
+        <div class="edu-card edu-card-highlight">
+          <div class="edu-icon">🔬</div>
+          <h3>Zero-Day Scanner vs Basic Checker</h3>
+          <p>
+            A basic link checker only reports <em>whether</em> a link works.
+            This Zero-Day Scanner goes further: it
+            <strong>risk-classifies</strong> every link (broken / redirect /
+            external), surfaces hidden vulnerabilities site owners are unaware
+            of — acting like a <em>zero-day probe</em> for link-layer weaknesses
+            before an attacker finds them first.
+          </p>
+        </div>
+
+        <!-- ── NEW: Ethical Hacking Workflow ────────────── -->
+
+        <div class="edu-card edu-card-highlight">
+          <div class="edu-icon">🧑‍💻</div>
+          <h3>Ethical Hacking Workflow</h3>
+          <p>
+            This scan sits in <strong>Phase 2 — Reconnaissance</strong> of the
+            pentest lifecycle:
+            <em>Authorise → <strong>Recon (here)</strong> → Analyse → Exploit
+            (in scope) → Report</em>.
+            The colour-coded results feed directly into Phase 5 — a
+            structured report with severity ratings and remediation advice.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    {% endif %}<!-- /if error -->
+
+  </main><!-- /results-main -->
+
+
+  <!-- ═══════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <p>
+      🛡️ <strong>Zero-Day Scanner</strong> —
+      Built for ethical hacking education. Always obtain permission before scanning.
+    </p>
+  </footer>
+
+
+  <!-- ═══════════════════════════════════════════
+       JAVASCRIPT — Filter & Search Logic
+  ════════════════════════════════════════════ -->
+  <script>
+    // Current active filter — starts at 'all'
+    let activeFilter = 'all';
+
+    /**
+     * filterTable(category)
+     * Shows only rows whose data-category matches the clicked filter.
+     * Also highlights the active filter button.
+     */
+    function filterTable(category) {
+      activeFilter = category;
+
+      const rows    = document.querySelectorAll('.result-row');
+      const btnIds  = ['all', 'working', 'broken', 'redirect', 'external'];
+
+      // Update active button styling
+      btnIds.forEach(id => {
+        document.getElementById('btn-' + id).classList.remove('active');
+      });
+      document.getElementById('btn-' + category).classList.add('active');
+
+      // Show / hide rows
+      rows.forEach(row => {
+        const match = category === 'all' || row.dataset.category === category;
+        row.style.display = match ? '' : 'none';
+      });
+
+      // Also re-apply any active search
+      searchTable();
+      checkEmpty();
+    }
+
+    /**
+     * searchTable()
+     * Live-filters the visible rows by URL text.
+     */
+    function searchTable() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const rows  = document.querySelectorAll('.result-row');
+
+      rows.forEach(row => {
+        // Only search rows that are already visible (respect category filter)
+        const catMatch = activeFilter === 'all' || row.dataset.category === activeFilter;
+        if (!catMatch) { row.style.display = 'none'; return; }
+
+        const urlText = row.querySelector('.url-link').textContent.toLowerCase();
+        row.style.display = urlText.includes(query) ? '' : 'none';
+      });
+
+      checkEmpty();
+    }
+
+    /**
+     * checkEmpty()
+     * Shows a "no results" message if all rows are hidden.
+     */
+    function checkEmpty() {
+      const visible = [...document.querySelectorAll('.result-row')]
+                        .filter(r => r.style.display !== 'none');
+      document.getElementById('noResultsMsg').classList.toggle('hidden', visible.length > 0);
+    }
+
+    // ── Animate stat cards on page load ───────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.stat-number').forEach(el => {
+        const target = parseInt(el.textContent, 10);
+        if (isNaN(target) || target === 0) return;
+
+        let current  = 0;
+        const step   = Math.max(1, Math.floor(target / 30));
+        const timer  = setInterval(() => {
+          current = Math.min(current + step, target);
+          el.textContent = current;
+          if (current >= target) clearInterval(timer);
+        }, 40);
+      });
+    });
+  </script>
+
+</body>
+</html>
